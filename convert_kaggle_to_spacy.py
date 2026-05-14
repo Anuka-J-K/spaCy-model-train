@@ -14,6 +14,19 @@ LANGUAGE_TERMS = {
     "tamil", "telugu", "malayalam", "urdu"
 }
 
+LABEL_MAP = {
+    'Designation': 'JOB_TITLE',
+    'Companies worked at': 'ORG',
+    'College Name': 'SCHOOL',
+    'Degree': 'DEGREE',
+    'Certificate': 'CERTIFICATE',
+    'Location': 'GPE',
+    'Graduation Year': 'DATE',
+    'Languages': 'LANGUAGE',
+}
+
+CERTIFICATE_KEYWORDS = ('certificate',)
+
 
 def load_json_annotations(path: str):
     annotations = []
@@ -34,16 +47,25 @@ def find_language_spans(doc):
     for token in doc:
         text = token.text.lower().strip(".,;:-")
         if text in LANGUAGE_TERMS:
-            spans.append(Span(doc, token.i, token.i + 1, label="Languages"))
+            spans.append(Span(doc, token.i, token.i + 1, label="LANGUAGE"))
     return spans
 
 
-def normalize_label(label):
+def normalize_label(label, text=''):
     if isinstance(label, (list, tuple)) and label:
-        return str(label[0])
-    if isinstance(label, str):
-        return label
-    return None
+        label = str(label[0])
+    elif not isinstance(label, str):
+        return None
+
+    label = label.strip()
+    mapped = LABEL_MAP.get(label)
+    if not mapped:
+        return None
+
+    if mapped == "DEGREE" and isinstance(text, str) and any(keyword in text.lower() for keyword in CERTIFICATE_KEYWORDS):
+        return "CERTIFICATE"
+
+    return mapped
 
 
 def build_docbin_from_json(nlp, items):
@@ -60,17 +82,26 @@ def build_docbin_from_json(nlp, items):
         ents = []
 
         for ann in item.get("annotation", []):
-            label = normalize_label(ann.get("label"))
-            if not label:
-                continue
-
             for point in ann.get("points", []):
                 start = point.get("start")
                 end = point.get("end")
                 if start is None or end is None:
                     continue
 
-                span = doc.char_span(start, end, label=label, alignment_mode="contract")
+                point_text = point.get("text", "")
+                label = normalize_label(ann.get("label"), point_text)
+                if not label:
+                    continue
+
+                # Trim whitespace from the span
+                while start < end and text[start].isspace():
+                    start += 1
+                while end > start and text[end-1].isspace():
+                    end -= 1
+                if start >= end:
+                    continue
+
+                span = doc.char_span(start, end, label=label, alignment_mode="strict")
                 if span is None:
                     continue
 

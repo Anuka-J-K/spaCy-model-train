@@ -11,7 +11,9 @@ OUTPUT_PATH = "data/train.spacy"
 LANGUAGE_TERMS = {
     "english", "hindi", "french", "german", "spanish", "japanese",
     "chinese", "portuguese", "arabic", "russian", "kannada",
-    "tamil", "telugu", "malayalam", "urdu"
+    "tamil", "telugu", "malayalam", "urdu","spanish", "italian", "dutch", "swedish", "norwegian",
+    "danish", "finnish", "polish", "czech", "greek", "hungarian",
+    "sinhala", "vietnamese", "thai", "indonesian", "bengali", "marathi", "gujarati",
 }
 
 LABEL_MAP = {

@@ -2,7 +2,7 @@ import random
 import spacy
 from spacy.tokens import DocBin
 
-db = DocBin().from_disk("data/train.spacy")
+db = DocBin().from_disk("data/train_v2.spacy")
 nlp = spacy.blank("en")
 docs = list(db.get_docs(nlp.vocab))
 random.shuffle(docs)

@@ -1,5 +1,6 @@
 import json
 import os
+import string
 import spacy
 from spacy.tokens import DocBin, Span
 from spacy.util import filter_spans
@@ -25,6 +26,9 @@ LABEL_MAP = {
     'Location': 'GPE',
     'Graduation Year': 'DATE',
     'Languages': 'LANGUAGE',
+    'Skills': 'SKILL',
+    'Email Address': 'EMAIL',
+    'Name': 'NAME',
 }
 
 CERTIFICATE_KEYWORDS = ('certificate',)
@@ -86,7 +90,7 @@ def build_docbin_from_json(nlp, items):
         for ann in item.get("annotation", []):
             for point in ann.get("points", []):
                 start = point.get("start")
-                end = point.get("end")
+                end = point.get("end") + 1  # JSON end is inclusive, spaCy end is exclusive
                 if start is None or end is None:
                     continue
 
@@ -95,26 +99,38 @@ def build_docbin_from_json(nlp, items):
                 if not label:
                     continue
 
-                # Trim whitespace from the span
-                while start < end and text[start].isspace():
+                # Trim whitespace and punctuation from the span edges
+                strip_chars = string.whitespace + string.punctuation
+                while start < end and text[start] in strip_chars:
                     start += 1
-                while end > start and text[end-1].isspace():
+                while end > start and text[end-1] in strip_chars:
                     end -= 1
+
                 if start >= end:
                     continue
 
-                span = doc.char_span(start, end, label=label, alignment_mode="strict")
-                if span is None:
+                # Initial span creation
+                span = doc.char_span(start, end, label=label, alignment_mode="expand")
+                
+                if span:
+                    # Token-level trimming: remove leading/trailing whitespace or punctuation tokens
+                    # This is the most robust way to satisfy spaCy's training requirements
+                    while len(span) > 0 and (span[0].is_space or span[0].is_punct):
+                        span = span[1:]
+                    while len(span) > 0 and (span[-1].is_space or span[-1].is_punct):
+                        span = span[:-1]
+
+                if not span or len(span) == 0:
                     continue
 
                 ents.append(span)
                 label_set.add(label)
 
-        if not any(span.label_ == "Languages" for span in ents):
+        if not any(span.label_ == "LANGUAGE" for span in ents):
             language_spans = find_language_spans(doc)
             if language_spans:
                 ents.extend(language_spans)
-                label_set.add("Languages")
+                label_set.add("LANGUAGE")
 
         if ents:
             ents = filter_spans(ents)

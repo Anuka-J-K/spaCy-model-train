@@ -78,7 +78,10 @@ def build_docbin_from_json(nlp, items):
                 label_set.add(label)
 
         if not any(span.label_ == "Languages" for span in ents):
-            ents.extend(find_language_spans(doc))
+            language_spans = find_language_spans(doc)
+            if language_spans:
+                ents.extend(language_spans)
+                label_set.add("Languages")
 
         if ents:
             ents = filter_spans(ents)
